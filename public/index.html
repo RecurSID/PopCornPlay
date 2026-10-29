@@ -114,8 +114,12 @@
     .search-icon {
       position: absolute;
       left: 15px;
-      top: 13px;
-      color: var(--quiet)
+      top: 50%;
+      width: 17px;
+      height: 17px;
+      color: var(--quiet);
+      pointer-events: none;
+      transform: translateY(-50%)
     }
 
     .filters {
@@ -484,21 +488,22 @@
     }
 
     footer {
-      border-top: 1px solid #ffffff12
+      border-top: 1px solid rgba(245, 185, 66, .2);
+      background: #171307
     }
 
     .foot {
-      min-height: 116px;
+      min-height: 76px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 20px;
-      color: var(--quiet);
+      color: #9f946f;
       font-size: 13px
     }
 
     .foot strong {
-      color: var(--text)
+      color: #d6bd72
     }
 
     .foot-links {
@@ -507,12 +512,12 @@
     }
 
     .foot a {
-      color: var(--muted);
+      color: #c8ad5e;
       text-decoration: none
     }
 
     .foot a:hover {
-      color: var(--text)
+      color: #f5d36e
     }
 
     .modal {
@@ -672,7 +677,7 @@
       }
 
       .foot {
-        padding: 28px 0;
+        padding: 18px 0;
         align-items: flex-start;
         flex-direction: column
       }
@@ -1097,7 +1102,9 @@
 <body>
   <header>
     <div class="nav shell"><a class="brand" href="#top"><img class="brand-logo" src="/assets/icon.jpg" alt="">Popcorn<b>Play</b></a>
-      <div class="search"><span class="search-icon">⌕</span><input id="search" type="search"
+      <div class="search"><svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11"
+            cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="search" type="search"
           aria-label="Search movies and TV shows" placeholder="Search movies and TV shows" autocomplete="off">
         <div class="results" id="results" role="listbox"></div>
       </div>
@@ -1171,7 +1178,7 @@
     <div class="foot shell">
       <p><strong>PopcornPlay</strong><br>A lightweight, open-source personal media browser.</p>
       <div class="foot-links"><a href="https://github.com/RecurSID/" target="_blank"
-          rel="noreferrer">GitHub</a><span>Data by TMDB</span><span>Playback by VidFast</span><span>© <span
+          rel="noreferrer">Made by RecurSID</a><span>Data by TMDB</span><span>Playback by VidFast</span><span>© <span
             id="year"></span></span></div>
     </div>
   </footer>
