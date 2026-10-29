@@ -1215,11 +1215,50 @@
     async function heroes() { const d = await api('/trending/all/week'); state.heroes = (d?.results || []).filter(x => ['movie', 'tv'].includes(x.media_type) && x.backdrop_path).slice(0, 6).map(x => item(x)); $('dots').replaceChildren(...state.heroes.map((_, i) => { const b = document.createElement('button'); b.className = 'dot'; b.ariaLabel = `Feature ${i + 1}`; b.onclick = () => showHero(i); return b })); showHero(0); setInterval(() => showHero((state.hero + 1) % state.heroes.length), 9000) }
     function showHero(i) { const x = state.heroes[i]; if (!x) return; state.hero = i; $('hero-bg').style.backgroundImage = `url(${IMG}original${x.backdrop})`; $('hero-title').textContent = x.title; $('hero-overview').textContent = x.overview; $('hero-kicker').textContent = x.type === 'tv' ? 'Featured series' : 'Featured movie'; $('hero-rating').textContent = x.rating ? `★ ${x.rating.toFixed(1)}` : 'Featured'; $('hero-year').textContent = x.year; document.querySelectorAll('.dot').forEach((d, j) => d.classList.toggle('active', i === j)) }
     function url(x, s = 1, e = 1) { const p = new URLSearchParams(PARAMS); if (x.progress?.watched > 20) p.set('startAt', Math.floor(x.progress.watched)); return `${VID}/${x.type === 'tv' ? `tv/${x.id}/${s}/${e}` : `movie/${x.id}`}?${p}` }
-    async function openPlayer(x) { state.current = x; $('player-title').textContent = x.title; $('modal').classList.add('open'); document.body.style.overflow = 'hidden'; $('episodes').classList.toggle('open', x.type === 'tv'); if (x.type === 'tv') { const d = await api(`/tv/${x.id}`), ss = (d?.seasons || []).filter(s => s.season_number > 0); $('season').replaceChildren(...ss.map(s => new Option(s.name, s.season_number))); $('season').value = x.season; await loadEpisodes(+$('season').value, x.episode) } else { $('player-sub').textContent = `${x.year} Movie`; $('frame').src = url(x) } }
+    async function openPlayer(x) {
+      state.current = x;
+      state.muted = false;
+      document.querySelector('[data-command="mute"]').textContent = 'Mute';
+      $('status').textContent = 'Loading player…';
+      $('player-title').textContent = x.title;
+      $('modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      $('episodes').classList.toggle('open', x.type === 'tv');
+      if (x.type === 'tv') {
+        const d = await api(`/tv/${x.id}`), ss = (d?.seasons || []).filter(s => s.season_number > 0);
+        $('season').replaceChildren(...ss.map(s => new Option(s.name, s.season_number)));
+        $('season').value = x.season;
+        await loadEpisodes(+$('season').value, x.episode)
+      } else {
+        $('player-sub').textContent = `${x.year} Movie`;
+        $('frame').src = url(x)
+      }
+    }
     async function loadEpisodes(s, e = 1) { const d = await api(`/tv/${state.current.id}/season/${s}`); $('episode').replaceChildren(...(d?.episodes || []).map(x => new Option(`${x.episode_number}. ${x.name}`, x.episode_number))); $('episode').value = e; updateEpisode() }
     function updateEpisode() { const s = +$('season').value || 1, e = +$('episode').value || 1, saved = progress()[`t${state.current.id}`]?.show_progress?.[`s${s}e${e}`]?.progress; $('frame').src = url({ ...state.current, progress: saved }, s, e); $('player-sub').textContent = `Season ${s} · Episode ${e}` }
     function close() { if (!$('modal').classList.contains('open')) return; $('modal').classList.remove('open'); $('frame').src = 'about:blank'; document.body.style.overflow = ''; state.current = null; renderProgress() }
-    function command(c) { const p = { command: c }; if (c === 'mute') { state.muted = !state.muted; p.muted = state.muted } $('frame').contentWindow?.postMessage(p, VID) }
+    function command(c) {
+      const frame = $('frame');
+      if (!state.current || !frame.contentWindow) {
+        $('status').textContent = 'Player is not ready';
+        return
+      }
+
+      const payload = { command: c };
+      if (c === 'mute') {
+        state.muted = !state.muted;
+        payload.muted = state.muted;
+        document.querySelector('[data-command="mute"]').textContent = state.muted ? 'Unmute' : 'Mute'
+      }
+
+      // VidFast may redirect the iframe to one of its other documented domains.
+      // The message is scoped to this iframe; incoming messages are still allowlisted below.
+      frame.contentWindow.postMessage(payload, '*');
+      $('status').textContent = c === 'getStatus' ? 'Requesting status…' : `${c[0].toUpperCase() + c.slice(1)} command sent`
+    }
+    $('frame').addEventListener('load', () => {
+      if (state.current) $('status').textContent = 'Player ready'
+    });
     window.addEventListener('message', ({ origin, data }) => { if (!ORIGINS.has(origin) || !data) return; if (data.type === 'MEDIA_DATA' && data.data) { localStorage.setItem(KEY, JSON.stringify(data.data)); renderProgress() } if (data.type === 'PLAYER_EVENT' && data.data) { const x = data.data, t = n => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, '0')}`; $('status').textContent = `${x.playing ? 'Playing' : x.event === 'ended' ? 'Finished' : 'Paused'}${x.duration ? ` · ${t(x.currentTime)} / ${t(x.duration)}` : ''}` } });
     async function search(q) { const d = await api('/search/multi', { query: q, include_adult: false }), xs = (d?.results || []).filter(x => ['movie', 'tv'].includes(x.media_type)).slice(0, 10), box = $('results'); box.replaceChildren(); if (!xs.length) { box.textContent = 'No matching titles.'; return } xs.forEach(raw => { const x = item(raw), b = document.createElement('button'); b.className = 'result'; b.innerHTML = '<img alt=""><span><strong></strong><small></small></span><span class="tag"></span>'; b.querySelector('img').src = x.poster ? IMG + 'w92' + x.poster : fallback(); b.querySelector('strong').textContent = x.title; b.querySelector('small').textContent = [x.year, x.rating && `★ ${x.rating.toFixed(1)}`].filter(Boolean).join(' · '); b.querySelector('.tag').textContent = x.type; b.onclick = () => { box.classList.remove('open'); $('search').value = ''; openPlayer(x) }; box.append(b) }) }
     async function more(key) { const [path, row, type] = routes[key], ds = await Promise.all([1, 2].map(page => api(path, { page }))); render(row, ds.flatMap(d => d?.results || []), type); toast('More titles loaded.') }
